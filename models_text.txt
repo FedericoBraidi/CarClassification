@@ -1,0 +1,8 @@
+Epoch [10/10], Training Loss: 0.16217723510109205, Training Accuracy: 99.24242424242425%, Validation Loss: 2.9003639277957736, Validation Accuracy: 31.293706293706293% -> model with 32 batch size, [1,1,1,1] residual block “make
+”
+Epoch [10/10], Training Loss: 0.14015701847461673, Training Accuracy: 99.25907425907425%, Validation Loss: 2.997695838262935, Validation Accuracy: 30.969030969030968% -> same but with 12 batch size
+
+Epoch [10/10], Training Loss: 0.3226497307732389, Training Accuracy: 95.3046953046953%, Validation Loss: 3.619964803407292, Validation Accuracy: 23.626373626373628%Epoch [10/10], Training Loss: 0.3226497307732389, Training Accuracy: 95.3046953046953%, Validation Loss: 3.619964803407292, Validation Accuracy: 23.626373626373628% -> miniresnet18 con batch size = 12
+
+Epoch [12/12], Training Loss: 0.2654783194401015, Training Accuracy: 95.42957042957043%, Validation Loss: 3.640531888978924, Validation Accuracy: 28.071
+batch size = 8, 12 epoche, miniresnet
