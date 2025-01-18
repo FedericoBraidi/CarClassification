@@ -1,5 +1,6 @@
 import torch.nn as nn
 import torch
+import torchvision.models as models
 
 """
 This code creates the building blocks for the Inception and ResNet architecture and then builds the models themselves as an extension of nn.Module
@@ -272,43 +273,118 @@ class InceptionModified (nn.Module):
 
         return x
 class SiameseNetwork(nn.Module):
-    def __init__(self, feature_extractor, dummy_input_shape=(1, 3, 224, 224)):
+    def __init__(self, feature_extractor, dummy_input_shape=(1, 3, 224, 224), contra_loss=False):
         super(SiameseNetwork, self).__init__()
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         self.feature_extractor = feature_extractor
-
         """
-        for param in self.feature_extractor.parameters():
-            param.requires_grad = False
+        for child in self.feature_extractor.children():
+            for params in child.parameters():
+                params.requires_grad = False
         """
-
+        if contra_loss:
+            
+            for child in self.feature_extractor.children():
+                for params in child.parameters():
+                    params.requires_grad = True
+        
         # Do a forward pass to get the dimension of the output
         with torch.no_grad():
             dummy_input = torch.zeros(dummy_input_shape)  # Shape: (batch_size, channels, height, width)
             dummy_output = self.feature_extractor(dummy_input.to(device))
             feature_size = dummy_output.view(dummy_output.size(0), -1).size(1)
-            
-        self.feature_extractor.eval()
 
         # Fully connected layers
         self.fc = nn.Sequential(
-            nn.Linear(2*feature_size, 256),
+            nn.Linear(2*feature_size, 1024),
             nn.ReLU(),
-            nn.Linear(256, 128),
+            nn.Linear(1024, 1024),
             nn.ReLU(),
-            nn.Linear(128, 1),
+            nn.Linear(1024, 1),
             nn.Sigmoid()
         )
+        
+        self.contra_loss=contra_loss
 
     def forward(self, input1, input2):
-        embedding1 = self.feature_extractor(input1).detach()
-        embedding2 = self.feature_extractor(input2).detach()
+    
+        embedding1 = self.feature_extractor(input1)
+        embedding2 = self.feature_extractor(input2)
+    
+        if self.contra_loss:
+            return embedding1, embedding2
+        else:
+            output = torch.cat((embedding1, embedding2), 1)
+            output = self.fc(output)
+            return output
 
-        # Flatten embeddings
-        embedding1 = embedding1.view(embedding1.size(0), -1)
-        embedding2 = embedding2.view(embedding2.size(0), -1)
+    
+class FinetuneResnet18(nn.Module):
+    def __init__(self, num_classes):
+        super(FinetuneResnet18, self).__init__()
+
+        self.model = models.resnet18(pretrained=True)
         
-        #distance = torch.abs(embedding1 - embedding2)  # Compute absolute difference
-        similarity = self.fc(torch.cat((embedding1,embedding2),1))
-        return similarity
+        self.model.fc = nn.Identity()
+        
+        for child in self.model.children():
+            for params in child.parameters():
+                params.requires_grad = False
+        
+        self.fc1 = nn.Linear(512, 2048)
+        self.fc2 = nn.Linear(2048, num_classes)
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x = self.model.conv1(x)
+        x = self.model.bn1(x)
+        x = self.model.relu(x)
+        x = self.model.maxpool(x)
+
+        x = self.model.layer1(x)
+        x = self.model.layer2(x)
+        x = self.model.layer3(x)
+        x = self.model.layer4(x)
+        x = self.model.avgpool(x)
+
+        x = x.view(x.size(0), -1)
+        x = nn.functional.relu(self.fc1(x))
+        x = self.dropout(x)
+        x = nn.functional.softmax(self.fc2(x), dim=1)
+
+        return x
+    
+class FinetuneInceptionV1(nn.Module):
+    def __init__(self, num_classes):
+        super(FinetuneInceptionV1, self).__init__()
+
+        self.model = models.googlenet(pretrained=True)
+        
+        self.model.fc = nn.Identity()
+        
+        for child in self.model.children():
+            for params in child.parameters():
+                params.requires_grad = False
+        
+        self.fc1 = nn.Linear(1024, 2048)
+        self.fc2 = nn.Linear(2048, 2048)
+        #self.fc3 = nn.Linear(2048, 2048)
+        #self.fc4 = nn.Linear(2048, 2048)
+        #self.fc5 = nn.Linear(2048, 2048)
+        self.fc6 = nn.Linear(2048, num_classes)
+        self.dropout = nn.Dropout(0.3)
+
+    def forward(self, x):
+        x = self.model(x)
+
+        x = x.view(x.size(0), -1)
+        x = nn.functional.relu(self.fc1(x))
+        x = nn.functional.relu(self.fc2(x))
+        #x = nn.functional.relu(self.fc3(x))
+        #x = nn.functional.relu(self.fc4(x))
+        #x = nn.functional.relu(self.fc5(x))
+        x = self.dropout(x)
+        x = nn.functional.softmax(self.fc6(x), dim=1)
+
+        return x

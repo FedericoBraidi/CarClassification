@@ -33,6 +33,8 @@ class ClassificationImageDataset(Dataset):
             label_position = 0
         elif self.classification_type == 'model':
             label_position = 1
+        elif self.classification_type == 'part':
+            label_position = 3
         else:
             print('Wrong classification type')
 
@@ -196,7 +198,7 @@ class VerificationImageDataset(Dataset):
         image1_path = os.path.join(self.root_dir, self.image1_paths[idx])
         image2_path = os.path.join(self.root_dir, self.image2_paths[idx])
         image1 = Image.open(image1_path).convert("RGB")  # Ensure 3-channel RGB format
-        image2 = Image.open(image1_path).convert("RGB")  # Ensure 3-channel RGB format
+        image2 = Image.open(image2_path).convert("RGB")  # Ensure 3-channel RGB format
         label = self.labels[idx]
 
         # Apply transformations if any
@@ -229,23 +231,25 @@ class FocalLoss(nn.Module):
             return loss.sum()  # Return the sum of losses
         else:
             return loss  # Return the loss per sample (no reduction)
-        
 class ContrastiveLoss(nn.Module):
     
-    def __init__(self, margin=1.0):
+    def __init__(self, margin):
         super(ContrastiveLoss, self).__init__()
         self.margin = margin
 
-    def forward(self, similarity, label):
-        # Convert similarity score to distance-like values
-        pos_loss = label * torch.pow(1 - similarity, 2)
-        neg_loss = (1 - label) * torch.pow(torch.clamp(similarity - self.margin, min=0.0), 2)
-        loss = torch.mean(pos_loss + neg_loss)
-        
-        print(pos_loss)
-        print(neg_loss)
-        print(loss)
-        
-        return loss
+    def forward(self, images1, images2, labels):
+        # Calculate the Euclidean distance between the image embeddings
+        euclidean_distance = F.pairwise_distance(images1, images2, p=2)
+        #print(euclidean_distance)
+        # Compute the contrastive loss
+        loss = 0.5 * (labels.float() * torch.pow(euclidean_distance, 2) + 
+                      (1 - labels).float() * torch.pow(torch.clamp(self.margin - euclidean_distance, min=0.0), 2))
+        #print(loss)
+        # Return the mean loss
+        return loss.mean()
 
-
+        
+def contrastive_accuracy(embedding1, embedding2, margin):
+    """dist < m --> 1 else 0"""
+    euclidean_distance = F.pairwise_distance(embedding1, embedding2, p=2)
+    return torch.reshape(euclidean_distance<margin,(1,euclidean_distance.size(0)))

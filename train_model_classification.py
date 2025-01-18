@@ -15,15 +15,15 @@ import time
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
 
 # Define parameters
-classification_type = 'make'  # Make or model
-num_epochs = 25
-batch_size = 32
+classification_type = 'model'  # Make or model
+num_epochs = 30
+batch_size = 8
 learning_rate = 1e-4
-splits_folder='train_test_split_part_make_100_80_20_0'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
+splits_folder='train_test_split_part_model_100_80_20_0'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
 model_name='inceptionmodified'  # Model, for now between inception, resnet18 and resnet-simple                     
 loss_name='focal'   # Loss, for now between focal and cross-entropy
 patience = 4    # For early stopping
-progressive = 5 # Used for differentiating between runs with same parameters
+progressive = 2 # Used for differentiating between runs with same parameters
 use_data_augmentation=True
 
 image_type=splits_folder.split('_')[3]
@@ -46,8 +46,12 @@ elif classification_type == 'model':
         num_classes = 1716
     elif image_type == 'part':
         num_classes = 956
+elif classification_type == 'part':
+    num_classes=8
 else:
     print('Wrong classification type') 
+
+shape=(1, 3, 224, 224)
 
 # Create model
 if model_name=='inceptionv1':
@@ -58,10 +62,14 @@ elif model_name=='resnet18':
     model = cst.ResNet(cst.ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
 elif model_name=='resnet-simple':
     model = cst.ResNet(cst.ResidualBlock, [1, 1, 1, 1],num_classes=num_classes).to(device)
+elif model_name=='finetuned-resnet18':
+    model = cst.FinetuneResnet18(num_classes=num_classes).to(device)
+elif model_name=='finetuned-inceptionv1':
+    model = cst.FinetuneInceptionV1(num_classes=num_classes).to(device)
 else:
     print('Unsupported model')
     
-summary(model,(1,3,224,224))
+summary(model,shape)
 
 # Define loss and optimizer
 if loss_name=='focal':    
@@ -132,7 +140,6 @@ for epoch in tqdm(range(num_epochs),leave=False):
             loss=(0.3* criterion(outputs[1],labels)) + (0.3* criterion(outputs[2],labels)) + criterion(outputs[0],labels)
         else:
             loss = criterion(outputs, labels)
-        
         i += 1  # Counting batches
         running_loss += loss.item()  # Update running loss
 
@@ -147,6 +154,7 @@ for epoch in tqdm(range(num_epochs),leave=False):
             total_train += outputs[0].size(0)
         else:
             predicted = torch.argmax(outputs.data, 1)
+            #print(predicted)
             total_train += outputs.size(0)
         
         #print(predicted)

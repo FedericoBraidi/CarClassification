@@ -10,28 +10,30 @@ import gc
 from tqdm import tqdm
 from torchinfo import summary
 import time
+import torch.nn.functional as F
 
 # Device configuration
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
 
 # Define parameters for current training
 num_epochs = 10
-batch_size = 64
-learning_rate = 1e-4
+batch_size = 32
+learning_rate = 1e-6
 patience = 4    # For early stopping
 progressive = 1 # Used for differentiating between runs with same parameters
-use_data_augmentation=True
-splits_folder='train_test_split_verification_full_make_80'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
-classification_threshold=0.5
-loss_name='binary_cross_entropy'
+use_data_augmentation=False
+splits_folder='train_test_split_verification_part_part_80'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
+classification_threshold=0.6
+loss_name='binary-cross-entropy'
+contrastive_margin=16
 
 # Extract parameters from the extractor model name to be able to import it
-extractor_model_save_name='model_inceptionmodified_make_8_focal_5.pt'
+extractor_model_save_name='model_resnet18_part_32_focal_1.pt'
 extractor_model_name,classification_type,_,_=extractor_model_save_name.split('.')[0].split('_')[1:-1]  # Extract parameters of the model to reconstruct it
 image_type=splits_folder.split('_')[4]
 
 # Name the file where we save the model with the parameters used for better readability
-model_save_name=f'model_verification_{extractor_model_name}_{classification_type}_{batch_size}_{progressive}.pt'
+model_save_name=f'model_verification_{extractor_model_name}_{classification_type}_{batch_size}_{loss_name}_{progressive}.pt'
 
 # Define root path (where the images are) and train path (where the list of images to use is)
 root_dir = os.path.join(os.getcwd(), f'../CompCars/data/{'cropped_image' if image_type=='full' else 'part'}')
@@ -48,6 +50,8 @@ elif classification_type == 'model':
         num_classes = 1716
     elif image_type == 'part':
         num_classes = 956
+elif classification_type == 'part':
+    num_classes=8
 else:
     print('Wrong classification type') 
 
@@ -63,23 +67,35 @@ elif extractor_model_name=='resnet-simple':
 else:
     print('Unsupported model')
     
+def init_weights(m):
+    if isinstance(m, nn.Linear):
+        nn.init.xavier_uniform_(m.weight)
+        if m.bias is not None:
+            nn.init.zeros_(m.bias)
+    
 # Load model and move to device
 model.load_state_dict(torch.load(os.path.join(os.getcwd(),'../Models' ,extractor_model_save_name), map_location=device))
 
-model = nn.Sequential(*list(model.children())[:-1]) # Eliminate the last layer to use the model as a feature extractor 
+model.fc1 = nn.Identity()#model = nn.Sequential(*list(model.children())[:-1]) # Eliminate the last layer to use the model as a feature extractor 
 
-model = cst.SiameseNetwork(model).to(device)
+model = cst.SiameseNetwork(model,contra_loss=True if loss_name=='contrastive' else False).to(device)
+
+model.apply(init_weights)
 
 summary(model,((1,3,224,224),(1,3,224,224)))
 
 # Define loss and optimizer
 
 if loss_name=='contrastive':
-    criterion = aux.ContrastiveLoss()
-elif loss_name=='binary_cross_entropy':
+    criterion = aux.ContrastiveLoss(margin=contrastive_margin)
+elif loss_name=='binary-cross-entropy':
     criterion = nn.BCELoss()
     
-optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=0.001)
+#optimizer = torch.optim.Adam(params=model.parameters(), lr=learning_rate, weight_decay=0.001)
+optimizer = torch.optim.Adam([
+    {'params': model.feature_extractor.parameters(), 'lr': 1e-6},
+    {'params': model.fc.parameters(), 'lr': 1e-4}
+])
 
 # Define transformations (resize was arbitrary, normalize was requested from pytorch)
 if use_data_augmentation==False:
@@ -124,7 +140,7 @@ for epoch in tqdm(range(num_epochs),leave=False):
     correct_train = 0
     total_train = 0
     i = 0
-
+    
     # Loads one batch at a time
     for images1, images2, labels in tqdm(train_loader, desc=f'Currently running epoch number {epoch+1}', leave=False):  
         # Move tensors to the configured device
@@ -133,35 +149,53 @@ for epoch in tqdm(range(num_epochs),leave=False):
         labels = labels.to(device)
 
         # Forward pass
-        similarity = model(images1, images2)
+        #similarity = model(images1, images2)
         
-        if loss_name=='binary_cross_entropy':
+        if loss_name=='binary-cross-entropy':
             labels = labels.float()
         
-        loss = criterion(similarity.squeeze(), labels)
+        #loss = criterion(similarity.squeeze(), labels)
         
-        #print(outputs)
         #print(criterion(outputs,labels))
-        
-        i += 1  # Counting batches
-        running_loss += loss.item()  # Update running loss
 
         # Backward and optimize
         optimizer.zero_grad()
-        loss.backward()
-        optimizer.step()
+        if loss_name=='contrastive':
+            output1, output2 = model(images1, images2)
+            loss = criterion(output1, output2, labels)
+            #print(labels)
+            loss.backward()
+            optimizer.step()
+            predicted = aux.contrastive_accuracy(output1, output2, margin=contrastive_margin)
+            
+        else:
+            output_labels_prob = model(images1, images2)
+            loss = criterion(output_labels_prob.squeeze(), labels)
+            loss.backward()
+            optimizer.step()
+            predicted = torch.reshape(output_labels_prob>classification_threshold,(1,output_labels_prob.size(0)))
+            
 
-        predicted = torch.reshape(similarity>classification_threshold,(1,labels.size(0)))
-        total_train += similarity.size(0)
-        
-        #print(predicted)
+        i += 1  # Counting batches
+        running_loss += loss.item()  # Update running loss
+
+        total_train += labels.size(0)
         
         correct_train += (predicted == labels).sum().item()
-        print(similarity)
+        
+        """
+        print(total_train)
+        print(correct_train)
+        print(correct_train/total_train)
+        
+        
         print(predicted)
         print(labels)
+        print(loss)
+        print((predicted == labels).sum().item()/len(labels))
+        """
 
-        del images1, images2, labels, similarity
+        del images1, images2, labels
         torch.cuda.empty_cache()
         gc.collect()
         
@@ -178,16 +212,38 @@ for epoch in tqdm(range(num_epochs),leave=False):
             images2 = images2.to(device)
             labels = labels.to(device)
             
-            # Forward pass
-            similarity = model(images1, images2)
-            loss = criterion(similarity.squeeze(), labels)
+            if loss_name=='binary-cross-entropy':
+                labels = labels.float()
+            
+            if loss_name=='contrastive':
+                output1, output2 = model(images1, images2)
+                loss = criterion(output1, output2, labels)
+                #print(loss)
+                predicted = aux.contrastive_accuracy(output1, output2, margin=contrastive_margin)
+                
+            else:
+                output_labels_prob = model(images1, images2)
+                loss = criterion(output_labels_prob.squeeze(), labels)
+                predicted = torch.reshape(output_labels_prob>classification_threshold,(1,output_labels_prob.size(0)))
+            
             running_val_loss += loss.item()  # Update running validation loss
 
-            predicted = torch.reshape(similarity>classification_threshold,(1,labels.size(0)))
-            total_val += similarity.size(0)
+            total_val += labels.size(0)
             correct_val += (predicted == labels).sum().item()
-
-            del images1, images2, labels, similarity
+            
+            """
+            print(total_val)
+            print(correct_val)
+            print(correct_val/total_val)
+            
+            
+            print(predicted)
+            print(labels)
+            print(loss)
+            print((predicted == labels).sum().item()/len(labels))
+            """
+            #print((predicted == labels).sum().item()/len(labels))
+            del images1, images2, labels
 
     # Calculate validation accuracy
     val_accuracy = 100 * correct_val / total_val

@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
 """
 The authors took a subset of the whole dataset and split it into training and testing
@@ -16,11 +17,12 @@ This code is used to mimick this.
 percentage_to_use = 1.0         # Percentage of the whole data to use
 percentage_to_test = 0.2        # Percentage of the used data to be used during test only
 threshold_percentage = 0.0    # If a class has less than this percentage of the total samples, it is not considered
+up_bound=False
 np.random.seed(0)
-label_type='make'
+label_type='part'
 image_type='part'
 
-filename=f'train_test_split_{image_type}_{label_type}_{int(percentage_to_use*100)}_{int((1-percentage_to_test)*100)}_{int(percentage_to_test*100)}_{str(threshold_percentage).split('.')[1]}'
+filename=f'train_test_split_{image_type}_{label_type}_{int(percentage_to_use*100)}_{int((1-percentage_to_test)*100)}_{int(percentage_to_test*100)}_{str(threshold_percentage).split('.')[1]}_{up_bound}'
 
 root_path = os.path.join(os.getcwd(),
                           f'../CompCars/data/{'cropped_image' if image_type=='full' else 'part'}')     # Root path of where the images are
@@ -34,6 +36,8 @@ def extract_class_label(file_path,label_type):
         id_label=0
     elif label_type=='model':
         id_label=1
+    elif label_type=='part' and image_type=='part':
+        id_label=3
     
     return file_path.split('/')[id_label]
 
@@ -55,11 +59,15 @@ for class_label, file_list in files_by_class.items():
     
 filtered_files_by_class={}
 value_threshold=threshold_percentage*tot_files
+top_value_threshold= 4*value_threshold if up_bound else 10000000
 print(value_threshold)
+print(top_value_threshold)
+tot_filtered_files=0
 
 for label in files_by_class:
-    if len(files_by_class[label])>=value_threshold:
+    if len(files_by_class[label])>=value_threshold and len(files_by_class[label])<=top_value_threshold:
         filtered_files_by_class[label]=files_by_class[label]
+        tot_filtered_files+=len(files_by_class[label])
 
 # Perform even split by label
 train_files = []
@@ -94,7 +102,7 @@ with open(os.path.join(write_path, 'train.txt'), 'w') as file:
 with open(os.path.join(write_path, 'test.txt'), 'w') as file:
     for path in test_files:
         file.write(path + '\n')
-
+        
 # Print the number of samples per label in train and test sets to check
 train_counts = defaultdict(int)
 test_counts = defaultdict(int)
@@ -114,6 +122,15 @@ for label, count in train_counts.items():
 print("\nSamples per label in testing set:")
 for label, count in test_counts.items():
     print(f"Label {label}: {count} samples")
-
+    
 # Print dimensions
 print(f"Training files: {len(train_files)}, Testing files: {len(test_files)}")
+maxlen=0
+for key in filtered_files_by_class:
+    filtered_files_by_class[key]=(len(filtered_files_by_class[key])/tot_filtered_files)*100
+    if filtered_files_by_class[key]>maxlen:
+        maxlen=filtered_files_by_class[key]
+
+plt.bar(filtered_files_by_class.keys(), filtered_files_by_class.values(), color='g')
+plt.show()
+

@@ -10,7 +10,7 @@ import torch.nn as nn
 
 # Parameters
 splits_folder='train_test_split_full_make_100_80_20_0'    # Name of the folder that contains the txt files for the splits 
-model_save_name = 'model_inceptionmodified_maxspeed_32_2.pt'  # Name of the model
+model_save_name = 'model_finetuned-resnet18_displacement_32_1.pt'  # Name of the model
 model_name,prediction_type,batch_size=model_save_name.split('.')[0].split('_')[1:-1]  # Extract parameters of the model to reconstruct it
 batch_size = int(batch_size)    # Convert to int
 
@@ -54,6 +54,12 @@ elif model_name=='resnet18':
     model = cst.ResNet(cst.ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
 elif model_name=='resnet-simple':
     model = cst.ResNet(cst.ResidualBlock, [1, 1, 1, 1],num_classes=num_classes).to(device)
+elif model_name=='resnet34':
+    model = cst.ResNet(cst.ResidualBlock, [3, 4, 6, 3],num_classes=num_classes).to(device)
+elif model_name=='finetuned-resnet18':
+    model = cst.FinetuneResnet18(num_classes=num_classes).to(device)
+elif model_name=='finetuned-inceptionv1':
+    model = cst.FinetuneInceptionV1(num_classes=num_classes).to(device)
 else:
     print('Unsupported model')
 
@@ -66,7 +72,7 @@ else:
     print('Unsupported loss')
 
 # Load model and move to device
-model.load_state_dict(torch.load(os.path.join(os.getcwd(),'../Models' ,model_save_name), map_location=device))
+model.load_state_dict(torch.load(os.path.join(os.getcwd() ,model_save_name), map_location=device))
 
 # Set in evaluation mode
 model.eval()

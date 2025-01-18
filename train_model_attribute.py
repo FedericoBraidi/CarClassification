@@ -14,14 +14,14 @@ from torchinfo import summary
 device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')  
 
 # Define parameters
-prediction_type = 'maxspeed'    #maxspeed, displacement, doornumber, seatnumber, type
+prediction_type = 'displacement'    #maxspeed, displacement, doornumber, seatnumber, type
 num_epochs = 10
 batch_size = 32
 learning_rate = 1e-4
 splits_folder='train_test_split_full_make_100_80_20_0'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
-model_name='inceptionmodified'  # Model, for now between inception, resnet18 and resnet-simple
+model_name='finetuned-resnet18'  # Model, for now between inception, resnet18 and resnet-simple
 patience = 2    # For early stopping
-progressive = 2 # Used for differentiating between runs with same parameters
+progressive = 1 # Used for differentiating between runs with same parameters
 use_data_augmentation=True
 
 # Name the file where we save the model with the parameters used for better readability
@@ -50,6 +50,12 @@ elif model_name=='resnet18':
     model = cst.ResNet(cst.ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
 elif model_name=='resnet-simple':
     model = cst.ResNet(cst.ResidualBlock, [1, 1, 1, 1],num_classes=num_classes).to(device)
+elif model_name=='resnet34':
+    model = cst.ResNet(cst.ResidualBlock, [3, 4, 6, 3],num_classes=num_classes).to(device)
+elif model_name=='finetuned-resnet18':
+    model = cst.FinetuneResnet18(num_classes=num_classes).to(device)
+elif model_name=='finetuned-inceptionv1':
+    model = cst.FinetuneInceptionV1(num_classes=num_classes).to(device)
 else:
     print('Unsupported model')
     
