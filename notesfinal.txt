@@ -52,8 +52,8 @@ model_inceptionmodified_model_32_focal_4.pt 20 epochs, 6.54-3.9, 3.97 on test (t
 model_inceptionmodified_model_16_focal_6.pt 30 epochs 1.11-0.864, 1.01 on test(trained on train_test_split_part_model_100_80_20_0 with random transf)
 model_inceptionmodified_model_16_focal_7.pt 40 epochs 1.16-0.89, 1.11 on test (trained on train_test_split_part_model_100_80_20_0 with random transf)
 model_inceptionmodified_model_8_focal_2.pt 30 epochs 1.12-1.08 , 1.23 on test (trained on train_test_split_part_model_100_80_20_0 with random transf)
-TODO model_inceptionmodified_model_32_focal_5.pt 30 epochs 3 on test(trained on train_test_split_part_model_100_80_20_0 with random transf)
-TODO model_inceptionmodified_model_32_focal_6.pt 40 epochs 3 on test(trained on train_test_split_part_model_100_80_20_0 with random transf)
+model_inceptionmodified_model_32_focal_5.pt 30 epochs 14.19-6.53, 7.6 on test(trained on train_test_split_part_model_100_80_20_0 with random transf)
+model_inceptionmodified_model_32_focal_6.pt 40 epochs 27.67-10.01, 11.28  on test(trained on train_test_split_part_model_100_80_20_0 with random transf)
 
 ###### CAR PART PREDICTION FROM CAR PART
 
@@ -86,5 +86,6 @@ model_finetuned-resnet18_displacement_32_1.pt 1.619-1.619, 1.623 on test (traine
 
 ###### CAR VERIFICATION
 
-model_verification_inceptionmodified_make_32_binary-cross-entropy_1.pt epoch 5 86.93-86.5, 88.28-86.41-52.6 on test (trained on train_test_split_verification_full_make_80)
+model_verification_inceptionmodified_make_32_binary-cross-entropy_1.pt epoch 5 86.93-86.5, 88.83-86.82-87.95 on test (trained on train_test_split_verification_full_make_80)
 model_verification_resnet18_part_32_binary-cross-entropy_1.pt 99.45-99.19, 99.26 on test (trained on train_test_split_verification_part_part_80)
+model_verification_inceptionmodified_model_32_binary-cross-entropy_1.pt 90.52-91.31, on test 91.8-90.48-83.18 (trained using model_inceptionmodified_model_16_focal_5.pt on train_test_split_verification_full_model_80)

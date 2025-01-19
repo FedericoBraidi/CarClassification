@@ -16,14 +16,14 @@ device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
 # Define parameters
 classification_type = 'model'  # Make or model
-num_epochs = 30
-batch_size = 8
+num_epochs = 40
+batch_size = 32
 learning_rate = 1e-4
 splits_folder='train_test_split_part_model_100_80_20_0'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
 model_name='inceptionmodified'  # Model, for now between inception, resnet18 and resnet-simple                     
 loss_name='focal'   # Loss, for now between focal and cross-entropy
 patience = 4    # For early stopping
-progressive = 2 # Used for differentiating between runs with same parameters
+progressive = 6 # Used for differentiating between runs with same parameters
 use_data_augmentation=True
 
 image_type=splits_folder.split('_')[3]

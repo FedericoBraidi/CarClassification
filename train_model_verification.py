@@ -22,13 +22,13 @@ learning_rate = 1e-6
 patience = 4    # For early stopping
 progressive = 1 # Used for differentiating between runs with same parameters
 use_data_augmentation=False
-splits_folder='train_test_split_verification_part_part_80'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
+splits_folder='train_test_split_verification_full_model_80'  # Folder which contains two files train.txt and test.txt with a list of images to use for train and test
 classification_threshold=0.6
 loss_name='binary-cross-entropy'
 contrastive_margin=16
 
-# Extract parameters from the extractor model name to be able to import it
-extractor_model_save_name='model_resnet18_part_32_focal_1.pt'
+# Extract parameters from the extmodel_inceptionmodified_model_8_focal_1.ptractor model name to be able to import it
+extractor_model_save_name='model_inceptionmodified_model_8_focal_1.pt'
 extractor_model_name,classification_type,_,_=extractor_model_save_name.split('.')[0].split('_')[1:-1]  # Extract parameters of the model to reconstruct it
 image_type=splits_folder.split('_')[4]
 
@@ -47,7 +47,7 @@ if classification_type == 'make':
         num_classes = 123
 elif classification_type == 'model':
     if image_type == 'full':    
-        num_classes = 1716
+        num_classes = 1712
     elif image_type == 'part':
         num_classes = 956
 elif classification_type == 'part':
@@ -170,6 +170,9 @@ for epoch in tqdm(range(num_epochs),leave=False):
             
         else:
             output_labels_prob = model(images1, images2)
+            print(labels)
+            print(output_labels_prob)
+            print(output_labels_prob.squeeze())
             loss = criterion(output_labels_prob.squeeze(), labels)
             loss.backward()
             optimizer.step()

@@ -10,8 +10,8 @@ import torch.nn as nn
 from torchinfo import summary
 
 # Parameters
-splits_folder='train_test_split_verification_part_part_80'    # Name of the folder that contains the txt files for the splits 
-model_save_name = 'model_verification_resnet18_part_32_binary-cross-entropy_1.pt'  # Name of the model
+splits_folder='train_test_split_verification_full_model_80'    # Name of the folder that contains the txt files for the splits 
+model_save_name = 'model_verification_inceptionmodified_model_32_binary-cross-entropy_1.pt'  # Name of the model
 model_name,classification_type,batch_size,loss_name=model_save_name.split('.')[0].split('_')[2:-1]  # Extract parameters of the model to reconstruct it
 batch_size = int(batch_size)    # Convert to int
 contrastive_margin=16
@@ -75,7 +75,7 @@ model = cst.SiameseNetwork(model,contra_loss=True if loss_name=='contrastive' el
 
 summary(model,((1,3,224,224),(1,3,224,224)))
 # Load model and move to device
-model.load_state_dict(torch.load(os.path.join(os.getcwd(),model_save_name), map_location=device))
+model.load_state_dict(torch.load(os.path.join(os.getcwd(), '../Models',model_save_name), map_location=device))
 
 # Set in evaluation mode
 model.eval()

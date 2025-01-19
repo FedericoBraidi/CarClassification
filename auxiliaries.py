@@ -167,6 +167,8 @@ class VerificationImageDataset(Dataset):
         self.image1_paths = []
         self.image2_paths = []
         self.labels = []
+        self.verification_type=classification_type
+        self.train=train
 
         # Load paths and labels from the text file
         with open(file_paths, 'r') as f:
@@ -174,7 +176,8 @@ class VerificationImageDataset(Dataset):
                 image1,image2,label = line.split(' ')
                 self.image1_paths.append(image1)   # Save image1 path
                 self.image2_paths.append(image2)   # Save image2 path
-                self.labels.append(int(label))  # 
+                self.labels.append(int(label))  #
+                
 
         # If train flag is true, split into train and validation sets
         if train:
@@ -200,6 +203,12 @@ class VerificationImageDataset(Dataset):
         image1 = Image.open(image1_path).convert("RGB")  # Ensure 3-channel RGB format
         image2 = Image.open(image2_path).convert("RGB")  # Ensure 3-channel RGB format
         label = self.labels[idx]
+        
+        if ((not self.train) and self.verification_type=='make'):
+            label1=self.image1_paths[idx].split('/')[0]
+            label2=self.image2_paths[idx].split('/')[0]
+            
+            label=(label1==label2)
 
         # Apply transformations if any
         if self.transform:

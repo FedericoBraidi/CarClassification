@@ -10,7 +10,7 @@ import torch.nn as nn
 
 # Parameters
 splits_folder='train_test_split_part_model_100_80_20_0'    # Name of the folder that contains the txt files for the splits 
-model_save_name = 'model_inceptionmodified_model_8_focal_2.pt'  # Name of the model
+model_save_name = 'model_inceptionmodified_model_32_focal_6.pt'  # Name of the model
 model_name,classification_type,batch_size,loss_name=model_save_name.split('.')[0].split('_')[1:-1]  # Extract parameters of the model to reconstruct it
 batch_size = int(batch_size)    # Convert to int
 
@@ -76,7 +76,7 @@ else:
     print('Unsupported loss')
 
 # Load model and move to device
-model.load_state_dict(torch.load(os.path.join(os.getcwd(),model_save_name), map_location=device))
+model.load_state_dict(torch.load(os.path.join(os.getcwd(),'../Models',model_save_name), map_location=device))
 
 # Set in evaluation mode
 model.eval()
