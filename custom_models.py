@@ -7,6 +7,11 @@ This code creates the building blocks for the Inception and ResNet architecture 
 """
 
 class ResidualBlock(nn.Module):
+
+    """
+    This is a pretty straight forward implementation of a Residual Block.
+    """    
+
     def __init__(self, in_channels, out_channels, stride = 1, downsample = None):
         super(ResidualBlock, self).__init__()
         self.conv1 = nn.Sequential(
@@ -32,10 +37,12 @@ class ResidualBlock(nn.Module):
     
 class ResNet(nn.Module):
 
-    # Generic class for ResNet18 and ResNet34, bigger models modify the blocks
-    # resnet18 = ResNet(ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
-    # resnet34 = ResNet(ResidualBlock, [3, 4, 6, 3],num_classes=num_classes).to(device) 
-
+    """
+    Generic class for ResNet18 and ResNet34, bigger models modify the amount of blocks
+    resnet18 = ResNet(ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
+    resnet34 = ResNet(ResidualBlock, [3, 4, 6, 3],num_classes=num_classes).to(device) 
+    """
+    
     def __init__(self, block, layers, num_classes):
         super(ResNet, self).__init__()
         self.inplanes = 64
@@ -82,6 +89,11 @@ class ResNet(nn.Module):
         return x
     
 class ConvBlock (nn.Module):
+
+    """
+    This is a pretty straight forward implementation of a Convolutional Block. It includes batchnorm and relu as well.
+    """
+
     def __init__(self,in_channels,out_channels,kernel_size,stride,padding,bias=False,batchnorm=False):
         super(ConvBlock,self).__init__()
         
@@ -98,9 +110,11 @@ class ConvBlock (nn.Module):
         x=self.relu(x)
         
         return x
+    
 class InceptionBlock (nn.Module):
     
     """
+    This implements the Inception Block by building on top of the ConvBlock.
     int_nxn is the intermediate output dimension for the branch that does nxn convolution
     """
     
@@ -127,6 +141,12 @@ class InceptionBlock (nn.Module):
         return tot
     
 class InceptionV1 (nn.Module):
+
+    """
+    This creates the original InceptionV1 architecture, using ConvBlock and InceptionBlock as building blocks.
+    Unfortunately, this was only tried in the beginning but was never really used, since we used the InceptionModified which follows this.
+    """
+
     def __init__(self , in_channels , num_classes):
         super(InceptionV1,self).__init__()
         
@@ -215,6 +235,11 @@ class InceptionV1 (nn.Module):
 
 
 class InceptionModified (nn.Module):
+
+    """
+    This is the modified version of the InceptionV1 where there are no auxiliar classifiers.
+    """
+
     def __init__(self , in_channels , num_classes):
         super(InceptionModified,self).__init__()
         
@@ -272,30 +297,40 @@ class InceptionModified (nn.Module):
         x = self.fc1(x)
 
         return x
+    
 class SiameseNetwork(nn.Module):
+    
+    """
+    This is the implementation of the Siamese network.
+    """
+
     def __init__(self, feature_extractor, dummy_input_shape=(1, 3, 224, 224), contra_loss=False):
         super(SiameseNetwork, self).__init__()
         device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
         
         self.feature_extractor = feature_extractor
+        
         """
+        This was initially used but later removed to help the feature extractor fine tune its features for verification.
         for child in self.feature_extractor.children():
             for params in child.parameters():
                 params.requires_grad = False
         """
-        if contra_loss:
+        if contra_loss: # Here just in case, contrastive loss was not working, so it's not used
             
             for child in self.feature_extractor.children():
                 for params in child.parameters():
                     params.requires_grad = True
         
         # Do a forward pass to get the dimension of the output
+
         with torch.no_grad():
             dummy_input = torch.zeros(dummy_input_shape)  # Shape: (batch_size, channels, height, width)
             dummy_output = self.feature_extractor(dummy_input.to(device))
             feature_size = dummy_output.view(dummy_output.size(0), -1).size(1)
 
         # Fully connected layers
+
         self.fc = nn.Sequential(
             nn.Linear(2*feature_size, 1024),
             nn.ReLU(),
@@ -318,20 +353,32 @@ class SiameseNetwork(nn.Module):
             output = torch.cat((embedding1, embedding2), 1)
             output = self.fc(output)
             return output
-
     
 class FinetuneResnet18(nn.Module):
+
+    """
+    This is the model which employs the pretrained ResNet18
+    """
+
     def __init__(self, num_classes):
         super(FinetuneResnet18, self).__init__()
 
+        # Get pretrained model from Pytorch
+
         self.model = models.resnet18(pretrained=True)
         
+        # Remove the last layer
+
         self.model.fc = nn.Identity()
         
+        # Freeze the layers
+
         for child in self.model.children():
             for params in child.parameters():
                 params.requires_grad = False
         
+        # Add the new layers for classification
+
         self.fc1 = nn.Linear(512, 2048)
         self.fc2 = nn.Linear(2048, num_classes)
         self.dropout = nn.Dropout(0.3)
@@ -356,6 +403,11 @@ class FinetuneResnet18(nn.Module):
         return x
     
 class FinetuneInceptionV1(nn.Module):
+
+    """
+    This works in the same way as the previous model but with the InceptionV1 pretrained
+    """
+
     def __init__(self, num_classes):
         super(FinetuneInceptionV1, self).__init__()
 
@@ -369,10 +421,7 @@ class FinetuneInceptionV1(nn.Module):
         
         self.fc1 = nn.Linear(1024, 2048)
         self.fc2 = nn.Linear(2048, 2048)
-        #self.fc3 = nn.Linear(2048, 2048)
-        #self.fc4 = nn.Linear(2048, 2048)
-        #self.fc5 = nn.Linear(2048, 2048)
-        self.fc6 = nn.Linear(2048, num_classes)
+        self.fc3 = nn.Linear(2048, num_classes)
         self.dropout = nn.Dropout(0.3)
 
     def forward(self, x):
@@ -381,10 +430,7 @@ class FinetuneInceptionV1(nn.Module):
         x = x.view(x.size(0), -1)
         x = nn.functional.relu(self.fc1(x))
         x = nn.functional.relu(self.fc2(x))
-        #x = nn.functional.relu(self.fc3(x))
-        #x = nn.functional.relu(self.fc4(x))
-        #x = nn.functional.relu(self.fc5(x))
         x = self.dropout(x)
-        x = nn.functional.softmax(self.fc6(x), dim=1)
+        x = nn.functional.softmax(self.fc3(x), dim=1)
 
         return x

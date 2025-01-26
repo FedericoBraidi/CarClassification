@@ -1,5 +1,9 @@
 import os
 
+"""
+This code just gets some imformation about the dataset.
+"""
+
 root_path='./../CompCars/data/image'
 
 make_dict={}
