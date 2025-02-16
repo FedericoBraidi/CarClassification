@@ -65,7 +65,7 @@ elif model_name=='inceptionmodified':
 elif model_name=='resnet18':
     model = cst.ResNet(cst.ResidualBlock, [2, 2, 2, 2],num_classes=num_classes).to(device)
 elif model_name=='resnet-simple':
-    model = cst.ResNet(cst.ResidualBlock, [1, 1, 1, 1],num_classes=num_classes).to(device)
+    model = cst.MiniResNet(cst.ResidualBlock,[2, 2, 2, 2], num_classes=num_classes).to(device)
 elif model_name=='finetuned-resnet18':
     model = cst.FinetuneResnet18(num_classes=num_classes).to(device)
 elif model_name=='finetuned-inceptionv1':
